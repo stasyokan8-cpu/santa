@@ -3,7 +3,7 @@ import random
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
-TOKEN = "YOUR_TOKEN_HERE"
+TOKEN = "1667037381:AAFdA7l6LcMidWsgrerdOkpBXfNF2gbNsvo"
 
 # --- Хранилище данных ---
 participants = {}   # user_id -> {"name": str, "wish": str}
@@ -53,7 +53,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user = query.from_user
-    user_id = str(user.id)  # ключи в JSON должны быть строками
+    user_id = str(user.id)
     username = user.username
     name = user.first_name
     data = query.data
@@ -78,6 +78,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if user_id not in participants:
             await query.message.reply_text("🎁 Сначала присоединись к игре!")
             return
+        current_wish = participants[user_id]["wish"]
+        if current_wish:
+            await query.message.reply_text(f"✨ Твоё текущее желание: {current_wish}")
+        else:
+            await query.message.reply_text("У тебя пока нет желания 🎄✨")
         await query.message.reply_text("Напиши своё желание одним сообщением 🎄✨")
         context.user_data["awaiting_wish"] = True
 
@@ -132,10 +137,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if user_id in participants:
             participants[user_id]["wish"] = update.message.text
             save_participants()
-            await update.message.reply_text("✨ Желание записано! 🎁")
+            await update.message.reply_text(
+                f"✨ Желание записано!\nТвоё желание: {participants[user_id]['wish']} 🎁"
+            )
         else:
             await update.message.reply_text("🎄 Ты не участвуешь в игре!")
         context.user_data["awaiting_wish"] = False
+
+# --- Дополнительная команда для удобства ---
+
+async def mywish(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    if user_id in participants:
+        wish = participants[user_id]["wish"]
+        if wish:
+            await update.message.reply_text(f"✨ Твоё желание: {wish}")
+        else:
+            await update.message.reply_text("🎄 У тебя пока нет желания!")
+    else:
+        await update.message.reply_text("❄️ Ты не участвуешь в игре!")
 
 # --- Основная функция запуска бота ---
 
@@ -145,6 +165,7 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("menu", menu))
+    app.add_handler(CommandHandler("mywish", mywish))
     app.add_handler(CallbackQueryHandler(button))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
